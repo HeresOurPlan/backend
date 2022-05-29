@@ -1,9 +1,108 @@
-from flask import Flask
+from flask import Flask, render_template, url_for, redirect
+from flask_sqlalchemy import SQLAlchemy
+from flask_login import UserMixin, login_user, LoginManager, login_required, logout_user, current_user
+from flask_wtf import FlaskForm
+from wtforms import StringField, PasswordField, SubmitField
+from wtforms.validators import InputRequired, Length, ValidationError
+from flask_bcrypt import Bcrypt
+
 
 app = Flask(__name__)
+db = SQLAlchemy(app)
+#in terminal -> from app import db
+#imports db variable 
+#db.create_all() -> create all the tables in the app file into db file
+bcrypt = Bcrypt(app)
+app.config['SQLALCHEMY_DATABASE_URI'] = 'mysql:///database.db'
+app.config['SECRET_KEY'] = 'thisisasecretkey'
 
-@app.route("/")
+#mysql database.db -> in terminal -> checking whether changes are applied
+#.tables -> checking each table
+#.exit -> exit
+
+
+login_manager = LoginManager() #allow app + flask to work tgt/loading users
+login_manager.init_app(app)
+login_manager.login_view = 'login'
+
+@login_manager.user_loader #reload user ids stored in the session
+def load_user(user_id):
+    return User.query.get(int(user_id))
+
+
+class User(db.Model, UserMixin):
+    id = db.Column(db.Integer, primary_key = True)
+    username = db.Column(db.String(20), nullable = False, unique = True) 
+    #nullable=False -> whenever registering , field has to be entered in/cannot be empty
+    password = db.Column(db.String(80), nullable = False)
+    #hashed pw is set to max 80 -- original pw is max 20
+
+
+
+class RegisterForm(FlaskForm):
+    username = StringField(validators = [InputRequired(), Length(min=4, max=20)], render_kw={"placeholder": "Username"})
+    password = PasswordField(validators = [InputRequired(), Length(min=4, max=20)], render_kw={"placeholder": "Password"})
+    submit = SubmitField("Register")
+
+
+    def validate_username(self, username):
+        existing_username = User.query.filter_by(
+            username=username.data).first()
+        if existing_username:
+            raise ValidationError("That username already exists. Please choose a different one.")
+
+
+class LoginForm(FlaskForm):
+    username = StringField(validators = [InputRequired(), Length(min=4, max=20)], render_kw={"placeholder": "Username"})
+    password = PasswordField(validators = [InputRequired(), Length(min=4, max=20)], render_kw={"placeholder": "Password"})
+    submit = SubmitField("Login")
+
+
+@app.route("/") #all webpages go when loaded
 def hello_world():
-    return "<p>Hello, World!</p>"
+    return render_template("home.html")
+#go to templates folder and search for file that is being passed in
+
+@app.route("/dashboard",  methods=['GET', 'POST'])
+@login_required
+def dashboard():
+    return render_template("dashboard.html")
+
+@app.route("/login", methods=['GET', 'POST'])
+def login():
+    form = LoginForm()
+
+    if form.validate_on_submit():
+        user = User.query.filter_by(username=form.username.data).first() #check if user in db
+        if user: #if user in db
+            if bcrypt.check_password_hash(user.password, form.password.data): #check user's pw and compare with form hashed pw
+                login_user(user)
+                return redirect(url_for("dashboard"))
+
+    return render_template("login.html", form=form)
+
+
+@app.route("/logout", methods=['GET', 'POST'])
+@login_required
+def logout():
+    logout_user()
+    return redirect(url_for("login"))
+
+
+@app.route("/register", methods=['GET', 'POST'])
+def register():
+    form = RegisterForm()
+
+    if form.validate_on_submit(): #whenever form is validated - create a hashed pw
+        hashed_password = bcrypt.generate_password_hash(form.password.data)
+        new_user = User(username=form.username.data, password=hashed_password)
+        db.session.add(new_user)
+        db.session.commit()
+        return redirect(url_for("login"))
+
+    return render_template("register.html", form=form)
 
 app.run(host="0.0.0.0", port=8080)
+
+if __name__ == "__main__":
+    app.run(debug=True) #running the app
