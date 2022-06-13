@@ -5,11 +5,12 @@ from flask_sqlalchemy import SQLAlchemy
 from sqlalchemy import Column, ForeignKey, Integer, String
 from sqlalchemy.orm import backref, relationship
 from flask_login import UserMixin, login_user, LoginManager, login_required, logout_user, current_user
+from forms import RegistrationForm
 from flask_wtf import FlaskForm
 from flask_cors import CORS
 from sqlalchemy import ForeignKey
-from wtforms import StringField, PasswordField, SubmitField
-from wtforms.validators import InputRequired, Length, ValidationError
+# from wtforms import StringField, PasswordField, SubmitField
+# from wtforms.validators import InputRequired, Length, ValidationError
 from flask_bcrypt import Bcrypt
 from datetime import datetime
 
@@ -32,7 +33,7 @@ db = SQLAlchemy(app)
 #     name = db.Column(db.String(20), nullable = False)
 #     gender = db.Column(db.String(1), nullable = False)
 #     dob = db.Column(db.Date, nullable = False)
-#     email = db.Column(db.String(20), unique = True, nullable = False)
+#     email = db.Column(db.String(150), unique = True, nullable = False)
 #     contact = db.Column(db.String(8), nullable = False)
 #     User_Activity = relationship("User_Activity")
 #     review = relationship("Review")
@@ -96,35 +97,35 @@ login_manager = LoginManager() #allow app + flask to work tgt/loading users
 login_manager.init_app(app)
 login_manager.login_view = 'login'
 
+
 @login_manager.user_loader #reload user ids stored in the session
 def load_user(user_id):
     return User.query.get(int(user_id))
 
 
+# class RegisterForm(FlaskForm):
+#     username = StringField(validators = [InputRequired(), Length(min=4, max=20)], render_kw={"placeholder": "Username"})
+#     password = PasswordField(validators = [InputRequired(), Length(min=4, max=20)], render_kw={"placeholder": "Password"})
+#     name = StringField(validators = [InputRequired(), Length(min=4, max=20)], render_kw={"placeholder": "Name"})
+#     gender = StringField(validators = [InputRequired(), Length(max = 1)], render_kw={"placeholder": "Gender (M/F)"})
+#     dob = StringField(validators = [InputRequired(), Length(min=4, max=20)], render_kw={"placeholder": "Date of Birth"})
+#     email = StringField(validators = [InputRequired(), Length(min=10, max=80)], render_kw={"placeholder": "Email"})
+#     contact = StringField(validators = [InputRequired(), Length(min=8, max=20)], render_kw={"placeholder": "Contact Number"})
 
-class RegisterForm(FlaskForm):
-    username = StringField(validators = [InputRequired(), Length(min=4, max=20)], render_kw={"placeholder": "Username"})
-    password = PasswordField(validators = [InputRequired(), Length(min=4, max=20)], render_kw={"placeholder": "Password"})
-    name = StringField(validators = [InputRequired(), Length(min=4, max=20)], render_kw={"placeholder": "Name"})
-    gender = StringField(validators = [InputRequired(), Length(max = 1)], render_kw={"placeholder": "Gender (M/F)"})
-    dob = StringField(validators = [InputRequired(), Length(min=4, max=20)], render_kw={"placeholder": "Date of Birth"})
-    email = StringField(validators = [InputRequired(), Length(min=10, max=80)], render_kw={"placeholder": "Email"})
-    contact = StringField(validators = [InputRequired(), Length(min=8, max=20)], render_kw={"placeholder": "Contact Number"})
-
-    submit = SubmitField("Register")
-
-
-    def validate_username(self, username):
-        existing_username = User.query.filter_by(
-            username=username.data).first()
-        if existing_username:
-            raise ValidationError("That username already exists. Please choose a different one.")
+#     submit = SubmitField("Register")
 
 
-class LoginForm(FlaskForm):
-    username = StringField(validators = [InputRequired(), Length(min=4, max=20)], render_kw={"placeholder": "Username"})
-    password = PasswordField(validators = [InputRequired(), Length(min=4, max=20)], render_kw={"placeholder": "Password"})
-    submit = SubmitField("Login")
+    # def validate_username(self, username):
+    #     existing_username = User.query.filter_by(
+    #         username=username.data).first()
+    #     if existing_username:
+    #         raise ValidationError("That username already exists. Please choose a different one.")
+
+
+# class LoginForm(FlaskForm):
+#     username = StringField(validators = [InputRequired(), Length(min=4, max=20)], render_kw={"placeholder": "Username"})
+#     password = PasswordField(validators = [InputRequired(), Length(min=4, max=20)], render_kw={"placeholder": "Password"})
+#     submit = SubmitField("Login")
 
 
 @app.route("/") #all webpages go when loaded
@@ -141,11 +142,21 @@ def dashboard():
 def login():
     form_data = request.json
     print(form_data)
-    if form_data["username"] == "bob":
-        return { "login_result": False }
-    return { "login_result": True }
-    # form = LoginForm()
+    if form_data.validate_on_submit():
+        user = User.query.filter_by(username=form_data.username.data).first()
+        if user:
+            if bcrypt.check_password_hash(user.password, form_data.password.data):
+                login_user(user)
+                return { "login_result": True }
+    return { "login_result": False }
 
+
+    # if form_data["username"] == "bob":
+    #     return { "login_result": False }
+    # return { "login_result": True }
+
+
+    # form = LoginForm()
     # if form.validate_on_submit():
     #     user = User.query.filter_by(username=form.username.data).first() #check if user in db
     #     if user: #if user in db
@@ -155,7 +166,6 @@ def login():
 
     # return render_template("login.html", form=form)
 
-
 @app.route("/logout", methods=['GET', 'POST'])
 @login_required
 def logout():
@@ -163,25 +173,45 @@ def logout():
     return redirect(url_for("login"))
 
 
-@app.route("/register", methods=['GET', 'POST'])
+@app.route("/register", methods=['POST'])
 def register():
-    form = RegisterForm()
+    form_data = request.json
+    print(form_data)
 
-    if form.validate_on_submit(): #whenever form is validated - create a hashed pw
-        hashed_password = bcrypt.generate_password_hash(form.password.data)
+    if form_data["username"] != db.session.username:
+        hashed_password = bcrypt.generate_password_hash(form_data.password.data)
         new_user = User(
-            username = form.username.data, 
+            username = form_data.username.data, 
             password = hashed_password,
-            name = form.name.data,
-            gender = form.gender.data,
-            dob = form.dob.data,
-            email = form.email.data,
-            contact = form.contact.data)
+            name = form_data.name.data,
+            gender = form_data.gender.data,
+            dob = form_data.dob.data,
+            email = form_data.email.data,
+            contact = form_data.contact.data
+        )
         db.session.add(new_user)
         db.session.commit()
-        return redirect(url_for("login"))
+        return { "register_result": True }
+    else:
+        print("haha cannot register sucka")
+        return { "register_result": False}
 
-    return render_template("register.html", form=form)
+
+    # if form.validate_on_submit(): #whenever form is validated - create a hashed pw
+    #     hashed_password = bcrypt.generate_password_hash(form.password.data)
+    #     new_user = User(
+    #         username = form.username.data, 
+    #         password = hashed_password,
+    #         name = form.name.data,
+    #         gender = form.gender.data,
+    #         dob = form.dob.data,
+    #         email = form.email.data,
+    #         contact = form.contact.data)
+    #     db.session.add(new_user)
+    #     db.session.commit()
+    #     return redirect(url_for("login"))
+
+    # return render_template("register.html", form=form)
 
 app.run(host="0.0.0.0", port=8080)
 
