@@ -16,7 +16,7 @@ from datetime import datetime
 app = Flask(__name__)
 CORS(app, resources={r"/*": {"origins": "http://localhost:3000"}})
 
-app.config['SQLALCHEMY_DATABASE_URI'] = 'mysql://root:root@localhost:3306/heresourplan'
+app.config['SQLALCHEMY_DATABASE_URI'] = 'mysql://root:root@127.0.0.1:3308/heresourplan'
 app.config['SECRET_KEY'] = 'thisisasecretkey'
 
 pymysql.install_as_MySQLdb()
@@ -41,8 +41,13 @@ class User(db.Model, UserMixin):
 
     user_activities = relationship("UserActivity")
     reviews = relationship("Review")
-    visit_statuses = relationship("VisitStatus", back_populates="username")
+    visit_statuses = relationship("VisitStatus", backref="User_ref")
 
+SimilarActivity = db.Table(
+    "SimilarActivity",
+    db.Column("activity_id", db.Integer, db.ForeignKey("Activity.id")),
+    db.Column("other_activity_id", db.Integer, db.ForeignKey("Activity.id")),
+)
 
 class Activity(db.Model):
     __tablename__="Activity"
@@ -57,10 +62,18 @@ class Activity(db.Model):
     price_point = db.Column(db.String(20), nullable = True)
     category = db.Column(db.String(20), nullable = False)
 
-    reviews = relationship("Review")
-    user_activities = relationship("UserActivity")
-    visit_statuses = relationship("VisitStatus", back_populates="activity")
-    similar_activities = relationship("SimilarActivity")
+    reviews = db.relationship("Review")
+    user_activities = db.relationship("UserActivity")
+    visit_statuses = db.relationship("VisitStatus", backref="activity_ref")
+    # similar_activities = relationship("SimilarActivity")
+    similar_activities = db.relationship(
+        "Activity", 
+        secondary="SimilarActivity",
+        primaryjoin="SimilarActivity.c.activity_id==Activity.id",
+        secondaryjoin="SimilarActivity.c.other_activity_id==Activity.id",
+        backref="sim_activity"
+    )
+
 
     ### if 1-many:    similar_activities = relationship("Similar_Activity") -- the current one
     ### if many-many: similar_activities = relationship("Similar_Activity",back_populates="sim_activity")
@@ -80,10 +93,7 @@ class Review(db.Model):
     num_stars = db.Column(db.Integer, nullable = False)
     desc = db.Column(db.String(1000), nullable = True) #i put in a few nullable=True here n there so ppl dont hv to put in too much effort to make a complete record otherwize laze
 
-class SimilarActivity(db.Model):
-    __tablename__="SimilarActivity"
-    activity = db.Column(db.Integer, ForeignKey("Activity.id"), nullable = False, primary_key = True)
-    sim_activity = db.Column(db.Integer, ForeignKey("Activity.id"), nullable = False, primary_key = True)
+
     
     #https://docs.sqlalchemy.org/en/14/orm/basic_relationships.html#one-to-one
     #activity_relationship = relationship("Activity", backref("Activity.id", uselist = False)) #commented out cos idt it's 1-1, it's either 1-many or many-many
@@ -157,12 +167,12 @@ def dashboard():
 def login():
     form_data = request.json
     print(form_data)
-    if form_data.validate_on_submit():
-        user = User.query.filter_by(username=form_data.username.data).first()
-        if user:
-            if bcrypt.check_password_hash(user.password, form_data.password.data):
-                login_user(user)
-                return { "login_result": True }
+    # if form_data.validate_on_submit():
+    user = User.query.filter_by(username=form_data['username']).first()
+    if user:
+        if bcrypt.check_password_hash(user.password, form_data['password']):
+            login_user(user)
+            return { "login_result": True }
     return { "login_result": False }
 
 
