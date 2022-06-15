@@ -2,17 +2,16 @@ from ast import For
 import pymysql
 from flask import Flask, render_template, url_for, redirect, request
 from flask_sqlalchemy import SQLAlchemy
-from sqlalchemy import Column, ForeignKey, Integer, String
-from sqlalchemy.orm import backref, relationship
+from sqlalchemy import Column, ForeignKey, Integer, String, create_engine
+from sqlalchemy.orm import backref, relationship, declarative_base
 from flask_login import UserMixin, login_user, LoginManager, login_required, logout_user, current_user
-from forms import RegistrationForm
 from flask_wtf import FlaskForm
 from flask_cors import CORS
-from sqlalchemy import ForeignKey
-# from wtforms import StringField, PasswordField, SubmitField
-# from wtforms.validators import InputRequired, Length, ValidationError
 from flask_bcrypt import Bcrypt
 from datetime import datetime
+# from forms import RegistrationForm (i will uncomment this out later it keeps throwing error,,, TT –minnal)
+# from wtforms import StringField, PasswordField, SubmitField
+# from wtforms.validators import InputRequired, Length, ValidationError
 
 app = Flask(__name__)
 CORS(app, resources={r"/*": {"origins": "http://localhost:3000"}})
@@ -23,61 +22,71 @@ app.config['SECRET_KEY'] = 'thisisasecretkey'
 pymysql.install_as_MySQLdb()
 db = SQLAlchemy(app)
 
-# class User(db.Model, UserMixin):
-#     #id = db.Column(db.Integer, primary_key = True)
-#     username = db.Column(db.String(20), nullable = False, unique = True, primary_key = True) 
-#     #nullable=False -> whenever registering , field has to be entered in/cannot be empty
-#     password = db.Column(db.String(80), nullable = False)
-#     #hashed pw is set to max 80 -- original pw is max 20
 
-#     name = db.Column(db.String(20), nullable = False)
-#     gender = db.Column(db.String(1), nullable = False)
-#     dob = db.Column(db.Date, nullable = False)
-#     email = db.Column(db.String(150), unique = True, nullable = False)
-#     contact = db.Column(db.String(8), nullable = False)
-#     User_Activity = relationship("User_Activity")
-#     review = relationship("Review")
-#     Visit_Status = relationship("Visit_Status")
+#engine = create_engine('mysql://root:root@localhost:3306/heresourplan')
+#(((just ignore this bit for now tq -minnal)))
 
 
+class User(db.Model, UserMixin):
+    username = db.Column(db.String(20), nullable = False, unique = True, primary_key = True) #nullable=False -> whenever registering , field has to be entered in/cannot be empty;     #id = db.Column(db.Integer, primary_key = True)
+    password = db.Column(db.String(80), nullable = False) #hashed pw is set to max 80 -- original pw is max 20
+    name = db.Column(db.String(20), nullable = False)
+    gender = db.Column(db.String(1), nullable = False)
+    dob = db.Column(db.Date, nullable = False)
+    email = db.Column(db.String(150), unique = True, nullable = False)
+    contact = db.Column(db.String(8), nullable = False)
+    #profile_url = db.Column(db.String(40), nullable=False,unique=True)
+    #              (format assumed "heresourplans.com/u/username" so 20+20(username)), but tbh cant we j derive based on username?)
 
-# class Activity(db.Model):
-#     id = db.Column(db.Integer, primary_key = True)
-#     postal = db.Column(db.String(6), primary_key = True, nullable = False, unique = True)
-#     title = db.Column(db.String(80), nullable = False)
-#     location = db.Column(db.String(80), nullable = False)
-#     opening_hours = db.Column(db.Time, nullable = False)
-#     closing_hours = db.Column(db.Time, nullable = False)
-#     prior_booking = db.Column(db.Boolean, nullable = False)
-#     website = db.Column(db.String(80), nullable = False)
-#     price = db.Column(db.String(20), nullable = False)
-#     category = db.Column(db.String(20), nullable = False)
-#     User_Activity = relationship("User_Activity")
-#     similar_activity = relationship("Similar_Activity")
-#     review = relationship("Review")
-#     Visit_Status = relationship("Visit_Status")
+    user_activities = relationship("User_Activity")
+    reviews = relationship("Review")
+    visit_statuses = relationship("Visit_Status", back_populates="username")
 
-# class User_Activity(db.Model):
-#     username = db.Column(ForeignKey("User.username"), nullable = False, unique = True, primary_key = True)
-#     activity = db.Column(ForeignKey("Activity.id"), nullable = False, unique = True, primary_key = True)
-#     rank = db.Column(db.Integer)
 
-# class Review(db.Model):
-#     username = db.Column(ForeignKey("User.username"), nullable = False, unique = True, primary_key = True)
-#     activity = db.Column(ForeignKey("Activity.id"), nullable = False, unique = True, primary_key = True)
-#     num_stars = db.Column(db.Integer, nullable = False)
-#     desc = db.Column(db.String(200), nullable = False)
+class Activity(db.Model):
+    postal = db.Column(db.String(6), nullable = False, primary_key = True)
+    title = db.Column(db.String(80), nullable = False, primary_key=True)
+    location = db.Column(db.String(80), nullable = False, primary_key = True)
+    id = db.Column(db.Integer, nullable=False,unique=True)
+    opening_hours = db.Column(db.Time, nullable = True)
+    closing_hours = db.Column(db.Time, nullable = True)
+    prior_booking = db.Column(db.Boolean, nullable = True)
+    website = db.Column(db.String(80), nullable = True)
+    price_point = db.Column(db.String(20), nullable = True)
+    category = db.Column(db.String(20), nullable = False)
 
-# class Similar_Activity(db.Model):
-#     activity = db.Column(ForeignKey("Activity.id"), nullable = False, unique = True, primary_key = True)
-#     sim_activity = db.Column(ForeignKey("Activity.id"), nullable = False, unique = True, primary_key = True)
-#     #https://docs.sqlalchemy.org/en/14/orm/basic_relationships.html#one-to-one
-#     activity_relationship = relationship("Activity", backref("Activity.id", uselist = False))
+    reviews = relationship("Review")
+    user_activities = relationship("User_Activity")
+    visit_statuses = relationship("Visit_Status", back_populates="activity")
+    similar_activities = relationship("Similar_Activity")
 
-# class Visit_Status(db.Model):
-#     username = db.Column(ForeignKey("User.username"), nullable = False, unique = True, primary_key = True)
-#     activity = db.Column(ForeignKey("Activity.id"), nullable = False, unique = True, primary_key = True)
-#     has_visited = db.Column(db.Boolean, nullable = False)
+    ### if 1-many:    similar_activities = relationship("Similar_Activity") -- the current one
+    ### if many-many: similar_activities = relationship("Similar_Activity",back_populates="sim_activity")
+    ###               og_activity = relationship("Similar_Activity", back_populates="activity")
+    ###               (or smth like that??? idk if need 2 separate statements or can combine in2 one...)
+
+class User_Activity(db.Model):
+    username = db.Column(db.String(20),ForeignKey("User.username"), nullable = False, primary_key = True)
+    activity = db.Column(db.Integer, ForeignKey("Activity.id"), nullable = False, primary_key = True)
+    rank = db.Column(db.Integer)
+
+class Review(db.Model):
+    username = db.Column(db.String(20), ForeignKey("User.username"), nullable = False, primary_key = True)
+    activity = db.Column(db.Integer, ForeignKey("Activity.id"), nullable = False, primary_key = True)
+    num_stars = db.Column(db.Integer, nullable = False)
+    desc = db.Column(db.String(1000), nullable = True) #i put in a few nullable=True here n there so ppl dont hv to put in too much effort to make a complete record otherwize laze
+
+class Similar_Activity(db.Model):
+    activity = db.Column(db.Integer, ForeignKey("Activity.id"), nullable = False, primary_key = True)
+    sim_activity = db.Column(db.Integer, ForeignKey("Activity.id"), nullable = False, primary_key = True)
+    
+    #https://docs.sqlalchemy.org/en/14/orm/basic_relationships.html#one-to-one
+    #activity_relationship = relationship("Activity", backref("Activity.id", uselist = False)) #commented out cos idt it's 1-1, it's either 1-many or many-many
+
+class Visit_Status(db.Model):
+    username = db.Column(db.String(20), ForeignKey("User.username"), nullable = False, primary_key = True)
+    activity = db.Column(db.Integer, ForeignKey("Activity.id"), nullable = False, primary_key = True)
+    has_visited = db.Column(db.Boolean, nullable = False)
 
 
 db.create_all()
