@@ -203,23 +203,24 @@ def register():
     form_data = request.json
     print(form_data)
 
-    if form_data["username"] != db.session.username:
-        hashed_password = bcrypt.generate_password_hash(form_data.password.data)
-        new_user = User(
-            username = form_data.username.data, 
-            password = hashed_password,
-            name = form_data.name.data,
-            gender = form_data.gender.data,
-            dob = form_data.dob.data,
-            email = form_data.email.data,
-            contact = form_data.contact.data
-        )
-        db.session.add(new_user)
-        db.session.commit()
-        return { "register_result": True }
-    else:
-        print("haha cannot register sucka")
-        return { "register_result": False}
+
+    hashed_password = bcrypt.generate_password_hash(form_data['password'])
+    new_user = User(
+        username = form_data['username'], 
+        password = hashed_password,
+        # name = form_data['name'],
+        name = 'bob', #TODO remember to add into registration front end
+        gender = form_data['gender'],
+        dob = form_data['dob'],
+        email = form_data['email'],
+        contact = form_data['contact']
+    )
+    db.session.add(new_user)
+    db.session.commit()
+    return { "register_result": True }
+    # else:
+    #     print("haha cannot register sucka")
+    #     return { "register_result": False}
 
 
     # if form.validate_on_submit(): #whenever form is validated - create a hashed pw
