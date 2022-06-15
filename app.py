@@ -28,6 +28,7 @@ db = SQLAlchemy(app)
 
 
 class User(db.Model, UserMixin):
+    __tablename__="User"
     username = db.Column(db.String(20), nullable = False, unique = True, primary_key = True) #nullable=False -> whenever registering , field has to be entered in/cannot be empty;     #id = db.Column(db.Integer, primary_key = True)
     password = db.Column(db.String(80), nullable = False) #hashed pw is set to max 80 -- original pw is max 20
     name = db.Column(db.String(20), nullable = False)
@@ -38,16 +39,17 @@ class User(db.Model, UserMixin):
     #profile_url = db.Column(db.String(40), nullable=False,unique=True)
     #              (format assumed "heresourplans.com/u/username" so 20+20(username)), but tbh cant we j derive based on username?)
 
-    user_activities = relationship("User_Activity")
+    user_activities = relationship("UserActivity")
     reviews = relationship("Review")
-    visit_statuses = relationship("Visit_Status", back_populates="username")
+    visit_statuses = relationship("VisitStatus", back_populates="username")
 
 
 class Activity(db.Model):
-    postal = db.Column(db.String(6), nullable = False, primary_key = True)
-    title = db.Column(db.String(80), nullable = False, primary_key=True)
-    location = db.Column(db.String(80), nullable = False, primary_key = True)
-    id = db.Column(db.Integer, nullable=False,unique=True)
+    __tablename__="Activity"
+    id = db.Column(db.Integer, nullable=False,unique=True, primary_key=True)
+    postal = db.Column(db.String(6), nullable = False)
+    title = db.Column(db.String(80), nullable = False)
+    location = db.Column(db.String(80), nullable = False)
     opening_hours = db.Column(db.Time, nullable = True)
     closing_hours = db.Column(db.Time, nullable = True)
     prior_booking = db.Column(db.Boolean, nullable = True)
@@ -56,34 +58,38 @@ class Activity(db.Model):
     category = db.Column(db.String(20), nullable = False)
 
     reviews = relationship("Review")
-    user_activities = relationship("User_Activity")
-    visit_statuses = relationship("Visit_Status", back_populates="activity")
-    similar_activities = relationship("Similar_Activity")
+    user_activities = relationship("UserActivity")
+    visit_statuses = relationship("VisitStatus", back_populates="activity")
+    similar_activities = relationship("SimilarActivity")
 
     ### if 1-many:    similar_activities = relationship("Similar_Activity") -- the current one
     ### if many-many: similar_activities = relationship("Similar_Activity",back_populates="sim_activity")
     ###               og_activity = relationship("Similar_Activity", back_populates="activity")
     ###               (or smth like that??? idk if need 2 separate statements or can combine in2 one...)
 
-class User_Activity(db.Model):
+class UserActivity(db.Model):
+    __tablename__="UserActivity"
     username = db.Column(db.String(20),ForeignKey("User.username"), nullable = False, primary_key = True)
     activity = db.Column(db.Integer, ForeignKey("Activity.id"), nullable = False, primary_key = True)
     rank = db.Column(db.Integer)
 
 class Review(db.Model):
+    __tablename__="Review"
     username = db.Column(db.String(20), ForeignKey("User.username"), nullable = False, primary_key = True)
     activity = db.Column(db.Integer, ForeignKey("Activity.id"), nullable = False, primary_key = True)
     num_stars = db.Column(db.Integer, nullable = False)
     desc = db.Column(db.String(1000), nullable = True) #i put in a few nullable=True here n there so ppl dont hv to put in too much effort to make a complete record otherwize laze
 
-class Similar_Activity(db.Model):
+class SimilarActivity(db.Model):
+    __tablename__="SimilarActivity"
     activity = db.Column(db.Integer, ForeignKey("Activity.id"), nullable = False, primary_key = True)
     sim_activity = db.Column(db.Integer, ForeignKey("Activity.id"), nullable = False, primary_key = True)
     
     #https://docs.sqlalchemy.org/en/14/orm/basic_relationships.html#one-to-one
     #activity_relationship = relationship("Activity", backref("Activity.id", uselist = False)) #commented out cos idt it's 1-1, it's either 1-many or many-many
 
-class Visit_Status(db.Model):
+class VisitStatus(db.Model):
+    __tablename__="VisitStatus"
     username = db.Column(db.String(20), ForeignKey("User.username"), nullable = False, primary_key = True)
     activity = db.Column(db.Integer, ForeignKey("Activity.id"), nullable = False, primary_key = True)
     has_visited = db.Column(db.Boolean, nullable = False)
