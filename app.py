@@ -42,12 +42,16 @@ class User(db.Model, UserMixin):
     user_activities = relationship("UserActivity")
     reviews = relationship("Review")
     visit_statuses = relationship("VisitStatus", backref="User_ref")
+    def get_id(self):
+            return (self.username)
 
 SimilarActivity = db.Table(
     "SimilarActivity",
     db.Column("activity_id", db.Integer, db.ForeignKey("Activity.id")),
     db.Column("other_activity_id", db.Integer, db.ForeignKey("Activity.id")),
 )
+
+    
 
 class Activity(db.Model):
     __tablename__="Activity"
