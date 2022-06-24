@@ -9,6 +9,7 @@ from flask_wtf import FlaskForm
 from flask_cors import CORS
 from flask_bcrypt import Bcrypt
 from datetime import datetime
+import re
 # from forms import RegistrationForm (i will uncomment this out later it keeps throwing error,,, TT –minnal)
 # from wtforms import StringField, PasswordField, SubmitField
 # from wtforms.validators import InputRequired, Length, ValidationError
@@ -206,14 +207,18 @@ def logout():
 def register():
     form_data = request.json
     print(form_data)
+    if form_data['password'] != form_data['confirm_password']:
+        print('wrong pass')
+        return { 'registration_result': 'wrongpassword' }
+    if  re.match("[a-z0-9]+@[a-z]+\.[a-z]{2,3}", form_data['email']) == None:
+        return { 'registration_result': 'invalidemail' }
 
 
     hashed_password = bcrypt.generate_password_hash(form_data['password'])
     new_user = User(
         username = form_data['username'], 
         password = hashed_password,
-        # name = form_data['name'],
-        name = 'bob', #TODO remember to add into registration front end
+        name = form_data['name'],
         gender = form_data['gender'],
         dob = form_data['dob'],
         email = form_data['email'],
@@ -221,7 +226,7 @@ def register():
     )
     db.session.add(new_user)
     db.session.commit()
-    return { "register_result": True }
+    return { "registration_result": True }
     # else:
     #     print("haha cannot register sucka")
     #     return { "register_result": False}
