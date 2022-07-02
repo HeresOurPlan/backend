@@ -10,6 +10,7 @@ from flask_cors import CORS
 from flask_bcrypt import Bcrypt
 from datetime import datetime
 import re
+import json
 # from forms import RegistrationForm (i will uncomment this out later it keeps throwing error,,, TT –minnal)
 # from wtforms import StringField, PasswordField, SubmitField
 # from wtforms.validators import InputRequired, Length, ValidationError
@@ -250,5 +251,21 @@ def register():
 
 app.run(host="0.0.0.0", port=8080)
 
+@app.route("/activities", methods=['GET','POST'])
+def get_activities():
+    activity_data = {}
+    activites = Activity.query.all()
+    for activity in activites:
+        activity_data[activity.title] = {
+            'postal': activity.postal,
+            'location': activity.location,
+            'opening_hours': activity.opening_hours,
+            'closing_hours': activity.closing_hours,
+            'category': activity.category
+            }
+    return json.dumps(activity_data, indent=4, sort_keys=True, default=str)
+
+
 if __name__ == "__main__":
     app.run(debug=True) #running the app
+
