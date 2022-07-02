@@ -210,8 +210,19 @@ def register():
     if form_data['password'] != form_data['confirm_password']:
         print('wrong pass')
         return { 'registration_result': 'wrongpassword' }
-    if  re.match("[a-z0-9]+@[a-z]+\.[a-z]{2,3}", form_data['email']) == None:
+    if re.match("[a-z0-9]+@[a-z]+\.[a-z]{2,3}", form_data['email']) == None:
         return { 'registration_result': 'invalidemail' }
+    
+    cur = pymysql.connection.cursor()
+    username_statement = "SELECT * FROM User WHERE username = %s"
+    x = cur.execute(username_statement, form_data['username'])
+    if int(x)>0:
+        return { 'registration_result': 'usernametaken' }
+    email_statement = "SELECT * FROM User WHERE email = %s"
+    y = cur.execute(email_statement, form_data['email'])
+    if int(y)>0:
+        return { 'registration_result': 'emailtaken' }
+
 
 
     hashed_password = bcrypt.generate_password_hash(form_data['password'])
