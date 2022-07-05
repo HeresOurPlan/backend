@@ -175,6 +175,7 @@ def login():
     print(form_data)
     # if form_data.validate_on_submit():
     user = User.query.filter_by(username=form_data['username']).first()
+    token = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIxMjM0NTY3ODkwIiwibmFtZSI6IkpvaG4gRG9lIiwiaWF0IjoxNTE2MjM5MDIyfQ.SflKxwRJSMeKKF2QT4fwpMeJf36POk6yJV_adQssw5c'
     if user:
         if bcrypt.check_password_hash(user.password, form_data['password']):
             login_user(user)
