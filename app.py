@@ -1,4 +1,5 @@
 from ast import For
+from importlib_metadata import email
 import pymysql
 from flask import Flask, render_template, url_for, redirect, request
 from flask_sqlalchemy import SQLAlchemy
@@ -18,7 +19,7 @@ import json
 app = Flask(__name__)
 CORS(app, resources={r"/*": {"origins": "http://localhost:3000"}})
 
-app.config['SQLALCHEMY_DATABASE_URI'] = 'mysql://root:root@127.0.0.1:3308/heresourplan'
+app.config['SQLALCHEMY_DATABASE_URI'] = 'mysql://root:root@127.0.0.1:3306/heresourplan'
 app.config['SECRET_KEY'] = 'thisisasecretkey'
 
 pymysql.install_as_MySQLdb()
@@ -175,6 +176,7 @@ def login():
     print(form_data)
     # if form_data.validate_on_submit():
     user = User.query.filter_by(username=form_data['username']).first()
+    #TODO:^ use this for querying database - change register
     token = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIxMjM0NTY3ODkwIiwibmFtZSI6IkpvaG4gRG9lIiwiaWF0IjoxNTE2MjM5MDIyfQ.SflKxwRJSMeKKF2QT4fwpMeJf36POk6yJV_adQssw5c'
     if user:
         if bcrypt.check_password_hash(user.password, form_data['password']):
@@ -215,15 +217,22 @@ def register():
     if re.match("[a-z0-9]+@[a-z]+\.[a-z]{2,3}", form_data['email']) == None:
         return { 'registration_result': 'invalidemail' }
     
-    cur = pymysql.connection.cursor()
-    username_statement = "SELECT * FROM User WHERE username = %s"
-    x = cur.execute(username_statement, form_data['username'])
-    if int(x)>0:
-        return { 'registration_result': 'usernametaken' }
-    email_statement = "SELECT * FROM User WHERE email = %s"
-    y = cur.execute(email_statement, form_data['email'])
-    if int(y)>0:
-        return { 'registration_result': 'emailtaken' }
+    user_db = User.query.filter_by(username=form_data['username']).first()
+    email_db = User.query.filter_by(email=form_data['email']).first()
+    if user_db:
+        return { 'registration_result': 'usernametaken'}
+    if email_db:
+        return { 'registration_result': 'emailtaken'}
+
+    # cur = pymysql.connection.cursor()
+    # username_statement = "SELECT * FROM User WHERE username = %s"
+    # x = cur.execute(username_statement, form_data['username'])
+    # if int(x)>0:
+    #     return { 'registration_result': 'usernametaken' }
+    # email_statement = "SELECT * FROM User WHERE email = %s"
+    # y = cur.execute(email_statement, form_data['email'])
+    # if int(y)>0:
+    #     return { 'registration_result': 'emailtaken' }
 
 
 
@@ -263,11 +272,11 @@ def register():
 
 app.run(host="0.0.0.0", port=8080)
 
-@app.route("/activities", methods=['GET','POST'])
+@app.get("/activities")
 def get_activities():
     activity_data = {}
-    activites = Activity.query.all()
-    for activity in activites:
+    activities = Activity.query.all()
+    for activity in activities:
         activity_data[activity.title] = {
             'postal': activity.postal,
             'location': activity.location,
