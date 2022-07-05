@@ -9,6 +9,8 @@ from flask_wtf import FlaskForm
 from flask_cors import CORS
 from flask_bcrypt import Bcrypt
 from datetime import datetime
+import re
+import json
 # from forms import RegistrationForm (i will uncomment this out later it keeps throwing error,,, TT –minnal)
 # from wtforms import StringField, PasswordField, SubmitField
 # from wtforms.validators import InputRequired, Length, ValidationError
@@ -16,7 +18,7 @@ from datetime import datetime
 app = Flask(__name__)
 CORS(app, resources={r"/*": {"origins": "http://localhost:3000"}})
 
-app.config['SQLALCHEMY_DATABASE_URI'] = 'mysql://root:root@localhost:3306/heresourplan'
+app.config['SQLALCHEMY_DATABASE_URI'] = 'mysql://root:root@127.0.0.1:3308/heresourplan'
 app.config['SECRET_KEY'] = 'thisisasecretkey'
 
 pymysql.install_as_MySQLdb()
@@ -41,8 +43,17 @@ class User(db.Model, UserMixin):
 
     user_activities = relationship("UserActivity")
     reviews = relationship("Review")
-    visit_statuses = relationship("VisitStatus", back_populates="username")
+    visit_statuses = relationship("VisitStatus", backref="User_ref")
+    def get_id(self):
+            return (self.username)
 
+SimilarActivity = db.Table(
+    "SimilarActivity",
+    db.Column("activity_id", db.Integer, db.ForeignKey("Activity.id")),
+    db.Column("other_activity_id", db.Integer, db.ForeignKey("Activity.id")),
+)
+
+    
 
 class Activity(db.Model):
     __tablename__="Activity"
@@ -57,10 +68,18 @@ class Activity(db.Model):
     price_point = db.Column(db.String(20), nullable = True)
     category = db.Column(db.String(20), nullable = False)
 
-    reviews = relationship("Review")
-    user_activities = relationship("UserActivity")
-    visit_statuses = relationship("VisitStatus", back_populates="activity")
-    similar_activities = relationship("SimilarActivity")
+    reviews = db.relationship("Review")
+    user_activities = db.relationship("UserActivity")
+    visit_statuses = db.relationship("VisitStatus", backref="activity_ref")
+    # similar_activities = relationship("SimilarActivity")
+    similar_activities = db.relationship(
+        "Activity", 
+        secondary="SimilarActivity",
+        primaryjoin="SimilarActivity.c.activity_id==Activity.id",
+        secondaryjoin="SimilarActivity.c.other_activity_id==Activity.id",
+        backref="sim_activity"
+    )
+
 
     ### if 1-many:    similar_activities = relationship("Similar_Activity") -- the current one
     ### if many-many: similar_activities = relationship("Similar_Activity",back_populates="sim_activity")
@@ -80,10 +99,7 @@ class Review(db.Model):
     num_stars = db.Column(db.Integer, nullable = False)
     desc = db.Column(db.String(1000), nullable = True) #i put in a few nullable=True here n there so ppl dont hv to put in too much effort to make a complete record otherwize laze
 
-class SimilarActivity(db.Model):
-    __tablename__="SimilarActivity"
-    activity = db.Column(db.Integer, ForeignKey("Activity.id"), nullable = False, primary_key = True)
-    sim_activity = db.Column(db.Integer, ForeignKey("Activity.id"), nullable = False, primary_key = True)
+
     
     #https://docs.sqlalchemy.org/en/14/orm/basic_relationships.html#one-to-one
     #activity_relationship = relationship("Activity", backref("Activity.id", uselist = False)) #commented out cos idt it's 1-1, it's either 1-many or many-many
@@ -157,12 +173,12 @@ def dashboard():
 def login():
     form_data = request.json
     print(form_data)
-    if form_data.validate_on_submit():
-        user = User.query.filter_by(username=form_data.username.data).first()
-        if user:
-            if bcrypt.check_password_hash(user.password, form_data.password.data):
-                login_user(user)
-                return { "login_result": True }
+    # if form_data.validate_on_submit():
+    user = User.query.filter_by(username=form_data['username']).first()
+    if user:
+        if bcrypt.check_password_hash(user.password, form_data['password']):
+            login_user(user)
+            return { "login_result": True }
     return { "login_result": False }
 
 
@@ -192,24 +208,40 @@ def logout():
 def register():
     form_data = request.json
     print(form_data)
+    if form_data['password'] != form_data['confirm_password']:
+        print('wrong pass')
+        return { 'registration_result': 'wrongpassword' }
+    if re.match("[a-z0-9]+@[a-z]+\.[a-z]{2,3}", form_data['email']) == None:
+        return { 'registration_result': 'invalidemail' }
+    
+    cur = pymysql.connection.cursor()
+    username_statement = "SELECT * FROM User WHERE username = %s"
+    x = cur.execute(username_statement, form_data['username'])
+    if int(x)>0:
+        return { 'registration_result': 'usernametaken' }
+    email_statement = "SELECT * FROM User WHERE email = %s"
+    y = cur.execute(email_statement, form_data['email'])
+    if int(y)>0:
+        return { 'registration_result': 'emailtaken' }
 
-    if form_data["username"] != db.session.username:
-        hashed_password = bcrypt.generate_password_hash(form_data.password.data)
-        new_user = User(
-            username = form_data.username.data, 
-            password = hashed_password,
-            name = form_data.name.data,
-            gender = form_data.gender.data,
-            dob = form_data.dob.data,
-            email = form_data.email.data,
-            contact = form_data.contact.data
-        )
-        db.session.add(new_user)
-        db.session.commit()
-        return { "register_result": True }
-    else:
-        print("haha cannot register sucka")
-        return { "register_result": False}
+
+
+    hashed_password = bcrypt.generate_password_hash(form_data['password'])
+    new_user = User(
+        username = form_data['username'], 
+        password = hashed_password,
+        name = form_data['name'],
+        gender = form_data['gender'],
+        dob = form_data['dob'],
+        email = form_data['email'],
+        contact = form_data['contact']
+    )
+    db.session.add(new_user)
+    db.session.commit()
+    return { "registration_result": True }
+    # else:
+    #     print("haha cannot register sucka")
+    #     return { "register_result": False}
 
 
     # if form.validate_on_submit(): #whenever form is validated - create a hashed pw
@@ -230,5 +262,21 @@ def register():
 
 app.run(host="0.0.0.0", port=8080)
 
+@app.route("/activities", methods=['GET','POST'])
+def get_activities():
+    activity_data = {}
+    activites = Activity.query.all()
+    for activity in activites:
+        activity_data[activity.title] = {
+            'postal': activity.postal,
+            'location': activity.location,
+            'opening_hours': activity.opening_hours,
+            'closing_hours': activity.closing_hours,
+            'category': activity.category
+            }
+    return json.dumps(activity_data, indent=4, sort_keys=True, default=str)
+
+
 if __name__ == "__main__":
     app.run(debug=True) #running the app
+
