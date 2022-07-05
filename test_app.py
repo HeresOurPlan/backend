@@ -12,5 +12,15 @@ app.config['SECRET_KEY'] = 'thisisasecretkey'
 pymysql.install_as_MySQLdb()
 db = SQLAlchemy(app)
 
-#HELP HOW DO I OPEN THE EXISTING DATABASE
+#HELP HOW DO I OPEN THE EXISTING DATABASE i hope its correct
 
+db.User.insert().values({"username": "keithlaw",
+                         "password": "password",
+                         "name": "Keith Law",
+                         "gender": "M",
+                         "dob": "30/05/1999",
+                         "email": "keithlaw@gmail.com",
+                         "contact": "62353535"
+                    })
+                    #this one will test for usernametaken, emailtaken, wrongpassword
+#test invalid email separately
