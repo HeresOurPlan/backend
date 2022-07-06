@@ -274,16 +274,16 @@ app.run(host="0.0.0.0", port=8080)
 
 @app.get("/activities")
 def get_activities():
-    activity_data = {}
+    activity_data = []
     activities = Activity.query.all()
     for activity in activities:
-        activity_data[activity.title] = {
-            'postal': activity.postal,
-            'location': activity.location,
-            'opening_hours': activity.opening_hours,
-            'closing_hours': activity.closing_hours,
-            'category': activity.category
-            }
+        parts = activity.location.split(", ")
+        lat = parts[0]
+        lng = parts[1]
+        activity_data.append({
+            'title': activity.title,
+            'coord': [lat, lng]
+            })
     return json.dumps(activity_data, indent=4, sort_keys=True, default=str)
 
 
