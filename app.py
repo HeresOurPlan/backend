@@ -94,6 +94,8 @@ class UserActivity(db.Model):
     __tablename__="UserActivity"
     username = db.Column(db.String(20),ForeignKey("User.username"), nullable = False, primary_key = True)
     activity = db.Column(db.Integer, ForeignKey("Activity.id"), nullable = False, primary_key = True)
+    img = db.Column(db.String(80),ForeignKey("Activity.img"), nullable = False)
+    imgfilename = db.Column(db.String(80),ForeignKey("Activity.filename"), nullable = False)
     rank = db.Column(db.Integer)
 
 class Review(db.Model):
@@ -288,6 +290,19 @@ def get_activities():
             'coord': [lat, lng]
             })
     return json.dumps(activity_data, indent=4, sort_keys=True, default=str)
+
+@app.get("/useractivities")
+def get_useractivities():
+    useractivities = UserActivity.query.all()
+    ranking = []
+    user = User.query.get(username) #how to get username for current session?
+    if user == useractivities.username:
+        for indiv in useractivities:
+            ranking.append({
+                'rank': [indiv.filename, indiv.activity]
+            })
+    return json.dumps(useractivities, indent=4, sort_keys=True, default=str)
+
 
 
 if __name__ == "__main__":
