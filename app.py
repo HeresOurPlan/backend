@@ -68,6 +68,9 @@ class Activity(db.Model):
     website = db.Column(db.String(80), nullable = True)
     price_point = db.Column(db.String(20), nullable = True)
     category = db.Column(db.String(20), nullable = False)
+    img = db.Column(db.String(80), unique=True, nullable=False)
+    mimetype = db.Column(db.String(80), nullable=False)
+    imgfilename = db.Column(db.String(80), nullable=False)
 
     reviews = db.relationship("Review")
     user_activities = db.relationship("UserActivity")
