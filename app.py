@@ -41,6 +41,10 @@ class User(db.Model, UserMixin):
     contact = db.Column(db.String(8), nullable = False)
     #profile_url = db.Column(db.String(40), nullable=False,unique=True)
     #              (format assumed "heresourplans.com/u/username" so 20+20(username)), but tbh cant we j derive based on username?)
+    img = db.Column(db.String(80), unique=True, nullable=False)
+    mimetype = db.Column(db.String(80), nullable=False)
+    imgfilename = db.Column(db.String(80), nullable=False)
+
 
     user_activities = relationship("UserActivity")
     reviews = relationship("Review")
@@ -304,6 +308,12 @@ def get_useractivities():
                 'rank': [indiv.filename, indiv.activity]
             })
     return json.dumps(useractivities, indent=4, sort_keys=True, default=str)
+
+
+@app.get("/user")
+def get_user():
+    user = User.query.get(username) #how to get username for current session?
+    return json.dumps(user, indent=4, sort_keys=True, default=str)
 
 
 
