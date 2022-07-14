@@ -60,8 +60,8 @@ class Activity(db.Model):
     __tablename__="Activity"
     id = db.Column(db.Integer, nullable=False,unique=True, primary_key=True)
     postal = db.Column(db.String(6), nullable = False)
-    title = db.Column(db.String(80), nullable = False)
-    location = db.Column(db.String(80), nullable = False)
+    address = db.Column(db.String(80), nullable = False)
+    locationCoord = db.Column(db.String(80), nullable = False)
     opening_hours = db.Column(db.Time, nullable = True)
     closing_hours = db.Column(db.Time, nullable = True)
     prior_booking = db.Column(db.Boolean, nullable = True)
@@ -94,6 +94,8 @@ class UserActivity(db.Model):
     __tablename__="UserActivity"
     username = db.Column(db.String(20),ForeignKey("User.username"), nullable = False, primary_key = True)
     activity = db.Column(db.Integer, ForeignKey("Activity.id"), nullable = False, primary_key = True)
+    address = db.Column(db.String(80),ForeignKey("Activity.address"), nullable = False)
+    locationCoord = db.Column(db.String(80),ForeignKey("Activity.locationCoord"), nullable = False)
     img = db.Column(db.String(80),ForeignKey("Activity.img"), nullable = False)
     imgfilename = db.Column(db.String(80),ForeignKey("Activity.filename"), nullable = False)
     rank = db.Column(db.Integer)
@@ -282,7 +284,7 @@ def get_activities():
     activity_data = []
     activities = Activity.query.all()
     for activity in activities:
-        parts = activity.location.split(", ")
+        parts = activity.locationCoord.split(", ")
         lat = parts[0]
         lng = parts[1]
         activity_data.append({
