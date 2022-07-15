@@ -1,26 +1,26 @@
 from ast import For
 from importlib_metadata import email
 import pymysql
-from flask import Flask, render_template, url_for, redirect, request
+from flask import Flask, jsonify, make_response, render_template, url_for, redirect, request
 from flask_sqlalchemy import SQLAlchemy
 from sqlalchemy import Column, ForeignKey, Integer, String, create_engine
 from sqlalchemy.orm import backref, relationship, declarative_base
 from flask_login import UserMixin, login_user, LoginManager, login_required, logout_user, current_user
+from werkzeug.utils import secure_filename
 from flask_wtf import FlaskForm
 from flask_cors import CORS
 from flask_bcrypt import Bcrypt
 from datetime import datetime
+import jwt
 import re
 import json
-# from forms import RegistrationForm (i will uncomment this out later it keeps throwing error,,, TT –minnal)
-# from wtforms import StringField, PasswordField, SubmitField
-# from wtforms.validators import InputRequired, Length, ValidationError
+
 
 app = Flask(__name__)
 CORS(app, resources={r"/*": {"origins": "http://localhost:3000"}})
 
 app.config['SQLALCHEMY_DATABASE_URI'] = 'mysql://root:root@127.0.0.1:3306/heresourplan'
-app.config['SECRET_KEY'] = 'thisisasecretkey'
+app.config['SECRET_KEY'] = 'heresourplansecret!'
 
 pymysql.install_as_MySQLdb()
 db = SQLAlchemy(app)
@@ -41,9 +41,9 @@ class User(db.Model, UserMixin):
     contact = db.Column(db.String(8), nullable = False)
     #profile_url = db.Column(db.String(40), nullable=False,unique=True)
     #              (format assumed "heresourplans.com/u/username" so 20+20(username)), but tbh cant we j derive based on username?)
-    img = db.Column(db.String(80), unique=True, nullable=False)
-    mimetype = db.Column(db.String(80), nullable=False)
-    imgfilename = db.Column(db.String(80), nullable=False)
+    img = db.Column(db.String(80), unique=True, nullable=True)
+    mimetype = db.Column(db.String(80), nullable=True)
+    imgfilename = db.Column(db.String(80), nullable=True)
 
 
     user_activities = relationship("UserActivity")
@@ -98,10 +98,6 @@ class UserActivity(db.Model):
     __tablename__="UserActivity"
     username = db.Column(db.String(20),ForeignKey("User.username"), nullable = False, primary_key = True)
     activity = db.Column(db.Integer, ForeignKey("Activity.id"), nullable = False, primary_key = True)
-    address = db.Column(db.String(80),ForeignKey("Activity.address"), nullable = False)
-    locationCoord = db.Column(db.String(80),ForeignKey("Activity.locationCoord"), nullable = False)
-    img = db.Column(db.String(80),ForeignKey("Activity.img"), nullable = False)
-    imgfilename = db.Column(db.String(80),ForeignKey("Activity.filename"), nullable = False)
     rank = db.Column(db.Integer)
 
 class Review(db.Model):
@@ -135,42 +131,6 @@ bcrypt = Bcrypt(app)
 #.tables -> checking each table
 #.exit -> exit
 
-
-login_manager = LoginManager() #allow app + flask to work tgt/loading users
-login_manager.init_app(app)
-login_manager.login_view = 'login'
-
-
-@login_manager.user_loader #reload user ids stored in the session
-def load_user(user_id):
-    return User.query.get(int(user_id))
-
-
-# class RegisterForm(FlaskForm):
-#     username = StringField(validators = [InputRequired(), Length(min=4, max=20)], render_kw={"placeholder": "Username"})
-#     password = PasswordField(validators = [InputRequired(), Length(min=4, max=20)], render_kw={"placeholder": "Password"})
-#     name = StringField(validators = [InputRequired(), Length(min=4, max=20)], render_kw={"placeholder": "Name"})
-#     gender = StringField(validators = [InputRequired(), Length(max = 1)], render_kw={"placeholder": "Gender (M/F)"})
-#     dob = StringField(validators = [InputRequired(), Length(min=4, max=20)], render_kw={"placeholder": "Date of Birth"})
-#     email = StringField(validators = [InputRequired(), Length(min=10, max=80)], render_kw={"placeholder": "Email"})
-#     contact = StringField(validators = [InputRequired(), Length(min=8, max=20)], render_kw={"placeholder": "Contact Number"})
-
-#     submit = SubmitField("Register")
-
-
-    # def validate_username(self, username):
-    #     existing_username = User.query.filter_by(
-    #         username=username.data).first()
-    #     if existing_username:
-    #         raise ValidationError("That username already exists. Please choose a different one.")
-
-
-# class LoginForm(FlaskForm):
-#     username = StringField(validators = [InputRequired(), Length(min=4, max=20)], render_kw={"placeholder": "Username"})
-#     password = PasswordField(validators = [InputRequired(), Length(min=4, max=20)], render_kw={"placeholder": "Password"})
-#     submit = SubmitField("Login")
-
-
 @app.route("/") #all webpages go when loaded
 def hello_world():
     return render_template("home.html")
@@ -185,31 +145,33 @@ def dashboard():
 def login():
     form_data = request.json
     print(form_data)
+    username = form_data['username']
+    password = form_data['password']
+    user = User.query.filter_by(username=username).first()
+
+    if not bcrypt.check_password_hash(user.password, password):
+        return {"login_result": False}
+
+    token = jwt.encode({"user": user.username}, "heresourplansekret")
+    resp = make_response(jsonify({"login_result": True}))
+    resp.headers["Authorization"] = token
+    resp.headers["Access-Control-Expose-Headers"] = "Authorization"
+    return resp
+
     # if form_data.validate_on_submit():
-    user = User.query.filter_by(username=form_data['username']).first()
     #TODO:^ use this for querying database - change register
-    token = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIxMjM0NTY3ODkwIiwibmFtZSI6IkpvaG4gRG9lIiwiaWF0IjoxNTE2MjM5MDIyfQ.SflKxwRJSMeKKF2QT4fwpMeJf36POk6yJV_adQssw5c'
-    if user:
-        if bcrypt.check_password_hash(user.password, form_data['password']):
-            login_user(user)
-            return { "login_result": True }
-    return { "login_result": False }
+
+    # if user:
+        # if bcrypt.check_password_hash(user.password, form_data['password']):
+            # login_user(user)
+            # return { "login_result": True }
+    # return { "login_result": False }
 
 
     # if form_data["username"] == "bob":
     #     return { "login_result": False }
     # return { "login_result": True }
 
-
-    # form = LoginForm()
-    # if form.validate_on_submit():
-    #     user = User.query.filter_by(username=form.username.data).first() #check if user in db
-    #     if user: #if user in db
-    #         if bcrypt.check_password_hash(user.password, form.password.data): #check user's pw and compare with form hashed pw
-    #             login_user(user)
-    #             return redirect(url_for("dashboard"))
-
-    # return render_template("login.html", form=form)
 
 @app.route("/logout", methods=['GET', 'POST'])
 @login_required
@@ -235,16 +197,6 @@ def register():
     if email_db:
         return { 'registration_result': 'emailtaken'}
 
-    # cur = pymysql.connection.cursor()
-    # username_statement = "SELECT * FROM User WHERE username = %s"
-    # x = cur.execute(username_statement, form_data['username'])
-    # if int(x)>0:
-    #     return { 'registration_result': 'usernametaken' }
-    # email_statement = "SELECT * FROM User WHERE email = %s"
-    # y = cur.execute(email_statement, form_data['email'])
-    # if int(y)>0:
-    #     return { 'registration_result': 'emailtaken' }
-
 
 
     hashed_password = bcrypt.generate_password_hash(form_data['password'])
@@ -260,28 +212,7 @@ def register():
     db.session.add(new_user)
     db.session.commit()
     return { "registration_result": True }
-    # else:
-    #     print("haha cannot register sucka")
-    #     return { "register_result": False}
 
-
-    # if form.validate_on_submit(): #whenever form is validated - create a hashed pw
-    #     hashed_password = bcrypt.generate_password_hash(form.password.data)
-    #     new_user = User(
-    #         username = form.username.data, 
-    #         password = hashed_password,
-    #         name = form.name.data,
-    #         gender = form.gender.data,
-    #         dob = form.dob.data,
-    #         email = form.email.data,
-    #         contact = form.contact.data)
-    #     db.session.add(new_user)
-    #     db.session.commit()
-    #     return redirect(url_for("login"))
-
-    # return render_template("register.html", form=form)
-
-app.run(host="0.0.0.0", port=8080)
 
 @app.get("/activities")
 def get_activities():
@@ -315,8 +246,60 @@ def get_user():
     user = User.query.get(username) #how to get username for current session?
     return json.dumps(user, indent=4, sort_keys=True, default=str)
 
+@app.post('/addactivity/image')
+def upupupload():
+    print("hello!")
+    username = request.form["username"]
+    activity_id = int(request.form["activityId"])
+    print("hello!2")
+    user = User.query.get(username)
+    print(user)
+    activity = Activity.query.get(activity_id) #how do i get activity id here
+    print("hello3!")
+    pic = activity['imagefiles'] #'pic' is the name of the key in frontend
+    if not pic:
+        return 'No pic uploaded!', 400
+
+
+    filename = secure_filename(pic.filename)
+    mimetype = pic.mimetype
+    if not filename or not mimetype:
+        return 'Bad upload!', 400
+
+    activity = Activity.query.get_or_404(id=activity_id) #how do i get activity id here
+    activity.img = pic.read()
+    activity.mimetype = mimetype
+    activity.imgfilename = filename
+
+    db.session.commit()
+
+    return 'Img Uploaded!', 200
+
+
+@app.route('/profileEdit/image', methods=['GET', 'POST'])
+def upload():
+    user = User.query.get_or_404(id=id) #how do i get activity id here
+    pic = user['pic'] #'pic' is the name of the key in frontend
+    if not pic:
+        return 'No pic uploaded!', 400
+
+
+    filename = secure_filename(pic.filename)
+    mimetype = pic.mimetype
+    if not filename or not mimetype:
+        return 'Bad upload!', 400
+
+    user = User.query.get_or_404(id=id) #how do i get activity id here
+    user.mimetype = mimetype
+    user.img = pic.read()
+    user.imgfilename = filename
+
+    db.session.commit()
+
+    return 'Img Uploaded!', 200
+
 
 
 if __name__ == "__main__":
-    app.run(debug=True) #running the app
+    app.run(host="0.0.0.0", port=8080, debug=True) #running the app
 
