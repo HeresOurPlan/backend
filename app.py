@@ -246,8 +246,16 @@ def get_user():
     user = User.query.get(username) #how to get username for current session?
     return json.dumps(user, indent=4, sort_keys=True, default=str)
 
-@app.post('/addactivity/image')
-def upupupload():
+@app.route('/addactivity/image', methods=['GET', 'POST'])
+def joining_tables_activity():
+    activity = Activity.query.all()
+    Activity.query.join(Activity, activity.id==UserActivity.activity_id).add_columns(Activity.id, Activity.img, Activity.mimetype, Activity.imgfilename, UserActivity.username, UserActivity.rank)
+
+    db.session.commit()
+
+    return "activity table joined!"
+
+def activity_upload():
     print("hello!")
     username = request.form["username"]
     activity_id = int(request.form["activityId"])
@@ -276,8 +284,19 @@ def upupupload():
     return 'Img Uploaded!', 200
 
 
+
+
 @app.route('/profileEdit/image', methods=['GET', 'POST'])
-def upload():
+def joining_tables_profile():
+    user = User.query.all()
+    User.query.join(User, user.id==UserActivity.username).add_columns(User.id, User.img, User.mimetype, User.imgfilename, UserActivity.activity_id, UserActivity.rank)
+
+    db.session.commit()
+
+    return "user table joined!"
+
+
+def profile_upload():
     user = User.query.get_or_404(id=id) #how do i get activity id here
     pic = user['pic'] #'pic' is the name of the key in frontend
     if not pic:
