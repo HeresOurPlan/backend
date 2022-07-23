@@ -14,6 +14,7 @@ from datetime import datetime
 import jwt
 import re
 import json
+import base64
 
 
 app = Flask(__name__)
@@ -283,6 +284,12 @@ def activity_upload():
 
     return 'Img Uploaded!', 200
 
+def act_convert_to_base_to_img():
+    activity_img = request.form["img"]
+    with open(activity_img, "rb") as img_file:
+        encoded_string = base64.b64encode(img_file.read())
+    
+    return encoded_string.decode('utf-8')
 
 
 
@@ -316,6 +323,13 @@ def profile_upload():
     db.session.commit()
 
     return 'Img Uploaded!', 200
+
+def profile_convert_to_base_to_img():
+    user_img = request.form["img"]
+    with open(user_img, "rb") as img_file:
+        encoded_string = base64.b64encode(img_file.read())
+    
+    return encoded_string.decode('utf-8')
 
 
 
