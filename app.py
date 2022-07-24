@@ -3,7 +3,7 @@ from importlib_metadata import email
 import pymysql
 from flask import Flask, jsonify, make_response, render_template, url_for, redirect, request
 from flask_sqlalchemy import SQLAlchemy
-from sqlalchemy import Column, ForeignKey, Integer, String, create_engine
+from sqlalchemy import Column, ForeignKey, Integer, String, create_engine, inspect
 from sqlalchemy.orm import backref, relationship, declarative_base
 from flask_login import UserMixin, login_user, LoginManager, login_required, logout_user, current_user
 from werkzeug.utils import secure_filename
@@ -69,13 +69,12 @@ class Activity(db.Model):
     locationCoord = db.Column(db.String(80), nullable = False)
     opening_hours = db.Column(db.Time, nullable = True)
     closing_hours = db.Column(db.Time, nullable = True)
-    prior_booking = db.Column(db.Boolean, nullable = True)
+    prior_booking = db.Column(db.String(1), nullable = True)
     website = db.Column(db.String(80), nullable = True)
     price_point = db.Column(db.String(20), nullable = True)
     category = db.Column(db.String(20), nullable = False)
-    img = db.Column(db.String(80), unique=True, nullable=False)
-    mimetype = db.Column(db.String(80), nullable=False)
-    imgfilename = db.Column(db.String(80), nullable=False)
+    img = db.Column(db.LargeBinary(4000000))
+    mimetype = db.Column(db.Text(255))
 
     reviews = db.relationship("Review")
     user_activities = db.relationship("UserActivity")
@@ -100,6 +99,8 @@ class UserActivity(db.Model):
     username = db.Column(db.String(20),ForeignKey("User.username"), nullable = False, primary_key = True)
     activity = db.Column(db.Integer, ForeignKey("Activity.id"), nullable = False, primary_key = True)
     rank = db.Column(db.Integer)
+
+
 
 class Review(db.Model):
     __tablename__="Review"
@@ -229,17 +230,25 @@ def get_activities():
             })
     return json.dumps(activity_data, indent=4, sort_keys=True, default=str)
 
-@app.get("/useractivities")
-def get_useractivities():
-    useractivities = UserActivity.query.all()
-    ranking = []
-    user = User.query.get(username) #how to get username for current session?
-    if user == useractivities.username:
-        for indiv in useractivities:
-            ranking.append({
-                'rank': [indiv.filename, indiv.activity]
-            })
-    return json.dumps(useractivities, indent=4, sort_keys=True, default=str)
+@app.get("/useractivities/<username>")
+def get_useractivities(username):
+    useractivities = UserActivity.query.filter(
+        UserActivity.username==username
+    ).order_by(
+        UserActivity.rank.asc()
+    ).all()
+    res = [object_as_dict(Activity.query.get_or_404(useractivity.activity)) for useractivity in useractivities]
+    for activity in res:
+        activity["img"] = base64.b64encode(activity.get("img")).decode('utf-8')
+        activity["opening_hours"] = str(activity["opening_hours"])
+        activity["closing_hours"] = str(activity["closing_hours"])
+        activity["img"] = f"data:{activity['mimetype']};base64,{activity['img']}"
+
+    return jsonify(res)
+
+def object_as_dict(obj):
+    return {c.key: getattr(obj, c.key)
+            for c in inspect(obj).mapper.column_attrs}
 
 
 @app.get("/user")
@@ -247,49 +256,93 @@ def get_user():
     user = User.query.get(username) #how to get username for current session?
     return json.dumps(user, indent=4, sort_keys=True, default=str)
 
-@app.route('/addactivity/image', methods=['GET', 'POST'])
-def joining_tables_activity():
-    activity = Activity.query.all()
-    Activity.query.join(Activity, activity.id==UserActivity.activity_id).add_columns(Activity.id, Activity.img, Activity.mimetype, Activity.imgfilename, UserActivity.username, UserActivity.rank)
+
+# @app.get("/useractivity")
+# def joining_activity():
+#     activity = Activity.query.all()
+#     joining = Activity.query.join(
+#         Activity, 
+#         Activity.id==UserActivity.activity
+#     ).add_columns(
+#         Activity.id, 
+#         Activity.img, 
+#         Activity.mimetype, 
+#         Activity.imgfilename, 
+#         UserActivity.username, 
+#         UserActivity.rank
+#     ).all()
+#     print(joining)
+#     db.session.commit()
+
+#     return "Activity Table Joined!"
+
+@app.post('/activity') #adding individual activities
+def add_activity():
+    new_activity = Activity(
+        postal = request.json.get("postal"),
+        address = request.json.get("address"),
+        locationCoord = request.json.get("locationCoord"),
+        opening_hours = request.json.get("opening_hours"),
+        closing_hours = request.json.get("closing_hours"),
+        prior_booking = request.json.get("prior_booking"),
+        website = request.json.get("website"),
+        price_point = request.json.get("price_point"),
+        category = request.json.get("category")
+    )
+    db.session.add(new_activity)
+    db.session.commit()
+
+    return "New Activity Added!"
+
+
+
+@app.delete("/activity/<activity_id>")
+def activity_delete(activity_id):
+    activity = Activity.query.get_or_404(activity_id)
+    db.session.delete(activity)
+    db.session.commit()
+    return "Activity Deleted!", 200
+
+@app.put("/activity/<activity_id>") #editing existing individual activities - put = edit
+def activity_upload(activity_id):
+    print(activity_id)
+    activity = Activity.query.get_or_404(activity_id)
+    activity.postal = request.json.get("postal")
+    activity.address = request.json.get("address")
+    activity.locationCoord = request.json.get("locationCoord")
+    activity.opening = request.json.get("opening_hours")
+    activity.closing = request.json.get("closing_hours")
+    activity.prior = request.json.get("prior_booking")
+    activity.website = request.json.get("website")
+    activity.price = request.json.get("price_point")
+    activity.category = request.json.get("category")
 
     db.session.commit()
 
-    return "activity table joined!"
+    return 'Activity Updated!', 200
 
-def activity_upload():
-    print("hello!")
-    username = request.form["username"]
-    activity_id = int(request.form["activityId"])
-    print("hello!2")
-    user = User.query.get(username)
-    print(user)
-    activity = Activity.query.get(activity_id) #how do i get activity id here
-    print("hello3!")
-    pic = activity['imagefiles'] #'pic' is the name of the key in frontend
-    if not pic:
+@app.put("/activity/image/<activity_id>") #inserting the image
+def activity_image_upload(activity_id):
+    print(activity_id)
+    img = request.files.get("img")
+    if not img:
         return 'No pic uploaded!', 400
 
-
-    filename = secure_filename(pic.filename)
-    mimetype = pic.mimetype
-    if not filename or not mimetype:
+    mimetype = img.mimetype
+    if not mimetype:
         return 'Bad upload!', 400
 
-    activity = Activity.query.get_or_404(id=activity_id) #how do i get activity id here
-    activity.img = pic.read()
+    activity = Activity.query.get_or_404(activity_id)
+    activity.img = img.read()
     activity.mimetype = mimetype
-    activity.imgfilename = filename
 
     db.session.commit()
 
     return 'Img Uploaded!', 200
 
-def act_convert_to_base_to_img():
-    activity_img = request.form["img"]
-    with open(activity_img, "rb") as img_file:
-        encoded_string = base64.b64encode(img_file.read())
-    
-    return encoded_string.decode('utf-8')
+
+# def act_decode_img(img):
+#     return base64.b64encode.decode('utf-8')
 
 
 
