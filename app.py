@@ -42,9 +42,8 @@ class User(db.Model, UserMixin):
     contact = db.Column(db.String(8), nullable = False)
     #profile_url = db.Column(db.String(40), nullable=False,unique=True)
     #              (format assumed "heresourplans.com/u/username" so 20+20(username)), but tbh cant we j derive based on username?)
-    img = db.Column(db.String(80), unique=True, nullable=True)
-    mimetype = db.Column(db.String(80), nullable=True)
-    imgfilename = db.Column(db.String(80), nullable=True)
+    img = db.Column(db.LargeBinary(4000000))
+    mimetype = db.Column(db.Text(255))
 
 
     user_activities = relationship("UserActivity")
