@@ -338,7 +338,7 @@ def activity_image_upload(activity_id):
 
     db.session.commit()
 
-    return 'Img Uploaded!', 200
+    return 'Activity Img Uploaded!', 200
 
 
 # def act_decode_img(img):
@@ -346,44 +346,67 @@ def activity_image_upload(activity_id):
 
 
 
-@app.route('/profileEdit/image', methods=['GET', 'POST'])
-def joining_tables_profile():
-    user = User.query.all()
-    User.query.join(User, user.id==UserActivity.username).add_columns(User.id, User.img, User.mimetype, User.imgfilename, UserActivity.activity_id, UserActivity.rank)
+@app.put('/profileEdit/<username>')
+def edit_profile(username):
+    user = User.query.get_or_404(username)
+    user.password = request.json.get("password") #can just change password like this?
+    user.name = request.json.get("name")
+    user.gender = request.json.get("gender")
+    user.dob = request.json.get("dob")
+    user.email = request.json.get("email")
+    user.contact = request.json.get("contact")
 
     db.session.commit()
 
-    return "user table joined!"
+    return 'Profile Updated!', 200
 
 
-def profile_upload():
-    user = User.query.get_or_404(id=id) #how do i get activity id here
-    pic = user['pic'] #'pic' is the name of the key in frontend
-    if not pic:
+# def joining_tables_profile():
+#     user = User.query.all()
+#     User.query.join(User, user.id==UserActivity.username).add_columns(User.id, User.img, User.mimetype, User.imgfilename, UserActivity.activity_id, UserActivity.rank)
+
+#     db.session.commit()
+
+#     return "user table joined!"
+
+@app.put("/profileEdit/image/<username>") 
+def profile_upload(username):
+    img = request.files.get("img")
+    if not img:
         return 'No pic uploaded!', 400
 
-
-    filename = secure_filename(pic.filename)
-    mimetype = pic.mimetype
-    if not filename or not mimetype:
+    mimetype = img.mimetype
+    if not mimetype:
         return 'Bad upload!', 400
 
-    user = User.query.get_or_404(id=id) #how do i get activity id here
+    user = User.query.get_or_404(username) 
+    user.img = img.read()
     user.mimetype = mimetype
-    user.img = pic.read()
-    user.imgfilename = filename
 
     db.session.commit()
 
-    return 'Img Uploaded!', 200
+    return 'Profile Pic Uploaded!', 200
 
-def profile_convert_to_base_to_img():
-    user_img = request.form["img"]
-    with open(user_img, "rb") as img_file:
-        encoded_string = base64.b64encode(img_file.read())
+# def profile_convert_to_base_to_img():
+#     user_img = request.form["img"]
+#     with open(user_img, "rb") as img_file:
+#         encoded_string = base64.b64encode(img_file.read())
     
-    return encoded_string.decode('utf-8')
+    # return encoded_string.decode('utf-8')
 
+
+@app.put("/profileEdit/password/<username>") 
+def password_change(username):
+    new_password = request.json("password")
+    cfm_password = request.json("confirm_password")
+    if new_password != cfm_password:
+        return "Passwords do not match", 200
+    hashed_password = bcrypt.generate_password_hash(new_password)
+
+    user.password = hashed_password
+    db.session.commit()
+
+    return "Password Changed", 200
 
 
 if __name__ == "__main__":
