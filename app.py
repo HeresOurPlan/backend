@@ -199,8 +199,6 @@ def register():
     if email_db:
         return { 'registration_result': 'emailtaken'}
 
-
-
     hashed_password = bcrypt.generate_password_hash(form_data['password'])
     new_user = User(
         username = form_data['username'], 
@@ -251,8 +249,36 @@ def object_as_dict(obj):
             for c in inspect(obj).mapper.column_attrs}
 
 
-@app.get("/user")
-def get_user():
+@app.post("/useractivities/<username>") #should it be post or put
+def add_rank(uname, aid, rnk):
+    if add_activity and not existing_rank(uname, rnk): #how to show when activity is being added?
+        new_ranking = UserActivity(
+            username = uname,
+            activity = aid,
+            rank = rnk
+        )
+        db.session.add(new_ranking)
+        db.session.commit()
+    else:
+        add_rank(uname, aid, rnk+1)
+
+    return "New Ranking Added!"
+
+def existing_rank(uname, rnk):
+    useractivities = UserActivity.query.filter(
+        UserActivity.username==uname
+    ).order_by(
+        UserActivity.rank.asc()
+    ).all()
+
+    if rnk in useractivities:
+        return True
+    return False
+
+
+
+@app.get("/user/<username>")
+def get_user(username):
     user = User.query.get(username) #how to get username for current session?
     return json.dumps(user, indent=4, sort_keys=True, default=str)
 
