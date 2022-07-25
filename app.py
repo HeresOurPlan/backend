@@ -249,32 +249,24 @@ def object_as_dict(obj):
             for c in inspect(obj).mapper.column_attrs}
 
 
-@app.post("/useractivities/<username>") #should it be post or put
-def add_rank(uname, aid, rnk):
-    if add_activity and not existing_rank(uname, rnk): #how to show when activity is being added?
-        new_ranking = UserActivity(
-            username = uname,
-            activity = aid,
-            rank = rnk
-        )
-        db.session.add(new_ranking)
-        db.session.commit()
-    else:
-        add_rank(uname, aid, rnk+1)
-
-    return "New Ranking Added!"
-
-def existing_rank(uname, rnk):
+@app.post("/useractivities/<username>/<activity_id>") #should it be post or put
+def add_rank(username, activity_id):
     useractivities = UserActivity.query.filter(
-        UserActivity.username==uname
+        UserActivity.username==username
     ).order_by(
         UserActivity.rank.asc()
     ).all()
+    num_activities = len(useractivities)
 
-    if rnk in useractivities:
-        return True
-    return False
+    new_ranking = UserActivity(
+        username = username,
+        activity = activity_id,
+        rank = num_activities + 1
+    )
+    db.session.add(new_ranking)
+    db.session.commit()
 
+    return "New Ranking Added!"
 
 
 @app.get("/user/<username>")
@@ -429,7 +421,7 @@ def password_change(username):
         return "Passwords do not match", 200
     hashed_password = bcrypt.generate_password_hash(new_password)
 
-    user.password = hashed_password
+    User.password = hashed_password
     db.session.commit()
 
     return "Password Changed", 200
