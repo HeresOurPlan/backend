@@ -236,7 +236,7 @@ def get_useractivities(username):
     useractivities = UserActivity.query.filter(
         UserActivity.username==username
     ).order_by(
-        UserActivity.rank.asc()
+        UserActivity.rank.asc() #order by rank
     ).all()
     res = [object_as_dict(Activity.query.get_or_404(useractivity.activity)) for useractivity in useractivities]
     for activity in res:
@@ -428,6 +428,53 @@ def password_change(username):
     db.session.commit()
 
     return "Password Changed", 200
+
+
+@app.get("/review/<username>/<activity_id>")
+def get_useractivities(username, activity_id):
+    reviews = Review.query.filter(
+        Review.username==username
+    ).order_by(
+        Review.num_stars.desc() #order by num_stars
+    ).all()
+    res = [object_as_dict(Activity.query.get_or_404(review.activity)) for review in reviews]
+    for activity in res:
+        activity["img"] = base64.b64encode(activity.get("img")).decode('utf-8')
+        activity["opening_hours"] = str(activity["opening_hours"])
+        activity["closing_hours"] = str(activity["closing_hours"])
+        activity["img"] = f"data:{activity['mimetype']};base64,{activity['img']}"
+
+    return jsonify(res)
+
+def object_as_dict(obj):
+    return {c.key: getattr(obj, c.key)
+            for c in inspect(obj).mapper.column_attrs}
+
+
+@app.post("/reviews/<username>/<activity_id>")
+def add_desc(username, activity_id):
+    input_star = request.json['num_stars']
+    input_review = request.json['desc']
+
+    new_review = Review(
+        username = username,
+        activity = activity_id,
+        num_stars = input_star,
+        desc = input_review
+    )
+    db.session.add(new_review)
+    db.session.commit()
+
+    return "New Review Added!"
+
+@app.delete("/reviews/<username>/<activity_id>")
+def review_delete(username, activity_id):
+    review = Review.query.get_or_404(username).get_or_404(activity_id)
+    db.session.delete(review)
+    db.session.commit()
+    return "Review Deleted!", 200
+
+
 
 
 if __name__ == "__main__":
