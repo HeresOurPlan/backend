@@ -63,6 +63,7 @@ SimilarActivity = db.Table(
 class Activity(db.Model):
     __tablename__="Activity"
     id = db.Column(db.Integer, nullable=False,unique=True, primary_key=True)
+    activity_name = db.Column(db.String(80), nullable = False)
     postal = db.Column(db.String(6), nullable = False)
     address = db.Column(db.String(80), nullable = False)
     locationCoord = db.Column(db.String(80), nullable = False)
@@ -218,12 +219,15 @@ def get_activities():
     activity_data = []
     activities = Activity.query.all()
     for activity in activities:
-        parts = activity.locationCoord.split(", ")
-        lat = parts[0]
-        lng = parts[1]
+    #     parts = activity.locationCoord.split(", ")
+    #     lat = parts[0]
+    #     lng = parts[1]
         activity_data.append({
-            'title': activity.title,
-            'coord': [lat, lng]
+            'activity_name': activity.activity_name,
+            'address': activity.address,
+            'opening_hours': activity.opening_hours,
+            'closing_hours': activity.closing_hours,
+            'postal': activity.postal
             })
     return json.dumps(activity_data, indent=4, sort_keys=True, default=str)
 
@@ -248,18 +252,17 @@ def object_as_dict(obj):
             for c in inspect(obj).mapper.column_attrs}
 
 
-@app.post("/useractivities/<username>/<activity_id>") #should it be post or put
-def add_rank(username, activity_id):
+@app.post("/useractivities") #should it be post or put
+def add_rank():
+    form_data = request.json
     useractivities = UserActivity.query.filter(
-        UserActivity.username==username
+        UserActivity.username==form_data["username"]
     ).order_by(
         UserActivity.rank.asc()
     ).all()
     num_activities = len(useractivities)
-
     new_ranking = UserActivity(
-        username = username,
-        activity = activity_id,
+        username = form_data["username"],
         rank = num_activities + 1
     )
     db.session.add(new_ranking)
@@ -296,6 +299,7 @@ def get_user(username):
 @app.post('/activity') #adding individual activities
 def add_activity():
     new_activity = Activity(
+        activity_name = request.json.get("activity_name"),
         postal = request.json.get("postal"),
         address = request.json.get("address"),
         locationCoord = request.json.get("locationCoord"),
