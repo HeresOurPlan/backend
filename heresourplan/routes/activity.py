@@ -11,21 +11,38 @@ from .. import app
 from flask import jsonify
 from flask import request
 
+import certifi
+import ssl
+import geopy.geocoders
+from geopy.geocoders import Nominatim
+
+def get_coord(address):
+    ctx = ssl.create_default_context(cafile=certifi.where())
+    geopy.geocoders.options.default_ssl_context = ctx
+    geolocator = Nominatim(user_agent="my_request", scheme='http')
+ 
+    #applying geocode method to get the location
+    location = geolocator.geocode(address)
+    print(address, location.latitude, location.longitude)
+    return f"{location.latitude}, {location.longitude}"
+
 
 @app.get("/activities")
 def get_activities():
     activity_data = []
     activities = Activity.query.all()
     for activity in activities:
-    #     parts = activity.locationCoord.split(", ")
-    #     lat = parts[0]
-    #     lng = parts[1]
+        parts = activity.locationCoord.split(",")
+        lat = parts[0]
+        lng = parts[1]
         activity_data.append({
             'activity_name': activity.activity_name,
             'address': activity.address,
             'opening_hours': activity.opening_hours,
             'closing_hours': activity.closing_hours,
-            'postal': activity.postal
+            'postal': activity.postal,
+            'lat': lat,
+            'long': lng
             })
     return json.dumps(activity_data, indent=4, sort_keys=True, default=str)
 
@@ -55,7 +72,7 @@ def add_activity():
         activity_name = request.json.get("activity_name"),
         postal = request.json.get("postal"),
         address = request.json.get("address"),
-        locationCoord = request.json.get("locationCoord"),
+        locationCoord = get_coord(request.json.get("address")),
         opening_hours = request.json.get("opening_hours"),
         closing_hours = request.json.get("closing_hours"),
         prior_booking = request.json.get("prior_booking"),
@@ -87,7 +104,7 @@ def add_rank():
     num_activities = len(useractivities)
     new_ranking = UserActivity(
         username = form_data["username"],
-        activity = form_data["activity_id"],
+        activity = form_data["activity"],
         rank = num_activities + 1
     )
     db.session.add(new_ranking)
