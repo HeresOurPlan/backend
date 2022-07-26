@@ -1,0 +1,20 @@
+GET http://localhost:8080/activities HTTP/1.1
+Content-Type: application/json
+
+###
+
+POST http://localhost:8080/activity HTTP/1.1
+Content-Type: application/json
+
+{
+    "activity_name": "activity name heh2",
+    "postal": "456789", 
+    "address": "67 street",
+    "locationCoord": "[45, 45]",
+    "opening_hours": "15:00:15",
+    "closing_hours": "16:00:16",
+    "prior_booking": "Y",
+    "website": "www.bdbd.com",
+    "price_point": "34",
+    "category": "yum"
+}
