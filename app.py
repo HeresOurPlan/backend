@@ -252,6 +252,29 @@ def object_as_dict(obj):
             for c in inspect(obj).mapper.column_attrs}
 
 
+@app.post('/activity') #adding individual activities
+def add_activity():
+    new_activity = Activity(
+        activity_name = request.json.get("activity_name"),
+        postal = request.json.get("postal"),
+        address = request.json.get("address"),
+        locationCoord = request.json.get("locationCoord"),
+        opening_hours = request.json.get("opening_hours"),
+        closing_hours = request.json.get("closing_hours"),
+        prior_booking = request.json.get("prior_booking"),
+        website = request.json.get("website"),
+        price_point = request.json.get("price_point"),
+        category = request.json.get("category")
+    )
+    new_activity["opening_hours"] = str(new_activity["opening_hours"])
+    new_activity["closing_hours"] = str(new_activity["closing_hours"])
+
+    db.session.add(new_activity)
+    db.session.refresh(new_activity)
+    db.session.commit()
+
+    return jsonify(object_as_dict(new_activity))
+
 @app.post("/useractivities") #should it be post or put
 def add_rank():
     form_data = request.json
@@ -263,6 +286,7 @@ def add_rank():
     num_activities = len(useractivities)
     new_ranking = UserActivity(
         username = form_data["username"],
+        activity = form_data["activity_id"],
         rank = num_activities + 1
     )
     db.session.add(new_ranking)
@@ -295,26 +319,6 @@ def get_user(username):
 #     db.session.commit()
 
 #     return "Activity Table Joined!"
-
-@app.post('/activity') #adding individual activities
-def add_activity():
-    new_activity = Activity(
-        activity_name = request.json.get("activity_name"),
-        postal = request.json.get("postal"),
-        address = request.json.get("address"),
-        locationCoord = request.json.get("locationCoord"),
-        opening_hours = request.json.get("opening_hours"),
-        closing_hours = request.json.get("closing_hours"),
-        prior_booking = request.json.get("prior_booking"),
-        website = request.json.get("website"),
-        price_point = request.json.get("price_point"),
-        category = request.json.get("category")
-    )
-    db.session.add(new_activity)
-    db.session.commit()
-
-    return "New Activity Added!"
-
 
 
 @app.delete("/activity/<activity_id>")
@@ -431,7 +435,7 @@ def password_change(username):
 
 
 @app.get("/review/<username>/<activity_id>")
-def get_useractivities(username, activity_id):
+def get_review_activities(username, activity_id):
     reviews = Review.query.filter(
         Review.username==username
     ).order_by(
