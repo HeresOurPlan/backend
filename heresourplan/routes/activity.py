@@ -107,8 +107,12 @@ def add_rank():
     )
     db.session.add(new_ranking)
     db.session.commit()
+    db.session.refresh(new_ranking)
 
-    return "New Ranking Added!"
+    new_ranking = object_as_dict(new_ranking)
+
+
+    return jsonify(new_ranking)
 
 @app.delete("/activity/<activity_id>")
 def activity_delete(activity_id):

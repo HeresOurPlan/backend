@@ -9,13 +9,27 @@ from .. import app
 from flask import jsonify
 from flask import make_response
 from flask import request
+from flask import session
 from flask_bcrypt import Bcrypt
 
 
 bcrypt = Bcrypt(app)
 
-@app.get("/user/<username>")
-def get_user(username):
+@app.get("/user")
+def get_user():
+    print(session)
+    user_id = session['username']
+    user = User.query.filter_by(username=user_id).first()
+    user_data = ({
+        'username': user.username,
+        'name': user.name,
+        'gender': user.gender,
+        'dob': user.dob,
+        'email': user.email,
+        'contact': user.contact
+        })
+    return json.dumps(user_data, indent=4, sort_keys=True, default=str)
+
     user = User.query.get(username) #how to get username for current session?
     return json.dumps(user, indent=4, sort_keys=True, default=str)
 
@@ -28,6 +42,7 @@ def login():
 
     print(form_data)
     username = form_data['username']
+    session['username'] = form_data['username']
     password = form_data['password']
     user = User.query.filter_by(username=username).first()
 
