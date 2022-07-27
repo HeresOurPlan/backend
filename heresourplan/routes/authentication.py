@@ -15,11 +15,11 @@ from flask_bcrypt import Bcrypt
 
 bcrypt = Bcrypt(app)
 
-@app.get("/user")
-def get_user():
-    print(session)
-    user_id = session['username']
-    user = User.query.filter_by(username=user_id).first()
+@app.get("/user/<username>")
+def get_user(username):
+    # print(session)
+    # user_id = session['username']
+    user = User.query.filter_by(username=username).first()
     user_data = ({
         'username': user.username,
         'name': user.name,
