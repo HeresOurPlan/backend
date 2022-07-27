@@ -8,7 +8,6 @@ Content-Type: application/json
 
 {
     "activity_name": "activity name heh2",
-    "postal": "456789", 
     "address": "67 street",
     "locationCoord": "[45, 45]",
     "opening_hours": "15:00:15",

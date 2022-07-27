@@ -46,7 +46,6 @@ class Activity(db.Model):
     __tablename__="Activity"
     id = db.Column(db.Integer, nullable=False,unique=True, primary_key=True)
     activity_name = db.Column(db.String(80), nullable = False)
-    postal = db.Column(db.String(6), nullable = False)
     address = db.Column(db.String(80), nullable = False)
     locationCoord = db.Column(db.String(80), nullable = False)
     opening_hours = db.Column(db.Time, nullable = True)

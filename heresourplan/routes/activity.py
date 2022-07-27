@@ -40,7 +40,6 @@ def get_activities():
             'address': activity.address,
             'opening_hours': activity.opening_hours,
             'closing_hours': activity.closing_hours,
-            'postal': activity.postal,
             'lat': lat,
             'long': lng
             })
@@ -70,7 +69,6 @@ def add_activity():
         raise Exception("No data submitted")
     new_activity = Activity(
         activity_name = request.json.get("activity_name"),
-        postal = request.json.get("postal"),
         address = request.json.get("address"),
         locationCoord = get_coord(request.json.get("address")),
         opening_hours = request.json.get("opening_hours"),
@@ -125,7 +123,6 @@ def activity_upload(activity_id):
         raise Exception("Request body is empty")
     print(activity_id)
     activity = Activity.query.get_or_404(activity_id)
-    activity.postal = request.json.get("postal")
     activity.address = request.json.get("address")
     activity.locationCoord = request.json.get("locationCoord")
     activity.opening = request.json.get("opening_hours")
